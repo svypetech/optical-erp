@@ -211,7 +211,7 @@ export default function Customers() {
         <Button onClick={() => { setForm({ name: "", mobile: "", notes: "" }); setEditOpen(true); }}>+ New Customer</Button>
       </div>
 
-      <Card className="overflow-x-auto p-0">
+      <Card className="hidden overflow-x-auto p-0 md:block">
         <table className="w-full text-sm">
           <thead><tr className="border-b border-slate-200 text-left text-xs font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-400">
             <th className="px-4 py-3">Name</th><th className="px-4 py-3">Mobile</th>
@@ -233,6 +233,29 @@ export default function Customers() {
           </tbody>
         </table>
       </Card>
+
+      {/* Mobile: customer cards */}
+      <div className="space-y-3 md:hidden">
+        {filtered.length === 0 && (
+          <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-slate-400 dark:border-slate-700">No customers yet.</div>
+        )}
+        {filtered.map((c) => (
+          <Card key={c.id} className="cursor-pointer p-4" onClick={() => openLedger(c.id)}>
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="font-bold text-slate-900 dark:text-white">{c.name}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">{c.mobile}</div>
+              </div>
+              <span className="text-xs font-semibold text-indigo-600">Open →</span>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+              <div><div className="text-xs text-slate-400">Bills</div><div className="font-semibold text-slate-800 dark:text-slate-100">{c.salesCount}</div></div>
+              <div><div className="text-xs text-slate-400">Billed</div><div className="font-semibold text-slate-800 dark:text-slate-100">{fmtMoney(c.totalBilled, cur)}</div></div>
+              <div><div className="text-xs text-slate-400">Due</div><div className={"font-semibold " + (c.totalDue > 0 ? "text-rose-600" : "text-emerald-600")}>{fmtMoney(c.totalDue, cur)}</div></div>
+            </div>
+          </Card>
+        ))}
+      </div>
 
       <Modal open={editOpen} title="New Customer" onClose={() => setEditOpen(false)}>
         <div className="space-y-4">

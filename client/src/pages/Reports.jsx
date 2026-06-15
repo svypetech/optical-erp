@@ -121,7 +121,7 @@ export default function Reports() {
             {fmtMoney(totals.profit, cur)}</div></Card>
       </div>
 
-      <Card className="overflow-x-auto p-0">
+      <Card className="hidden overflow-x-auto p-0 md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-xs font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-400">
@@ -148,6 +148,23 @@ export default function Reports() {
           </tbody>
         </table>
       </Card>
+
+      {/* Mobile: report cards */}
+      <div className="space-y-3 md:hidden">
+        {rows.length === 0 && (
+          <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-slate-400 dark:border-slate-700">No data for this range.</div>
+        )}
+        {rows.map((r) => (
+          <Card key={r.key} className="p-4">
+            <div className="font-semibold text-slate-900 dark:text-white">{label(r.key)}</div>
+            <div className="mt-2 grid grid-cols-3 gap-2 text-sm">
+              <div><div className="text-xs text-slate-400">Income</div><div className="font-semibold text-emerald-600">{fmtMoney(r.income, cur)}</div></div>
+              <div><div className="text-xs text-slate-400">Expenses</div><div className="font-semibold text-rose-600">{fmtMoney(r.expenses, cur)}</div></div>
+              <div><div className="text-xs text-slate-400">Profit</div><div className={"font-semibold " + (r.profit >= 0 ? "text-indigo-600" : "text-rose-600")}>{fmtMoney(r.profit, cur)}</div></div>
+            </div>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }

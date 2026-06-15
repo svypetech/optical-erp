@@ -73,7 +73,7 @@ export default function Income() {
         All money received — sale payments appear automatically; add miscellaneous cash with “Manual Income”.
       </p>
 
-      <Card className="overflow-x-auto p-0">
+      <Card className="hidden overflow-x-auto p-0 md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-xs font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-400">
@@ -125,6 +125,40 @@ export default function Income() {
           )}
         </table>
       </Card>
+
+      {/* Mobile: income cards */}
+      <div className="space-y-3 md:hidden">
+        {filtered.length === 0 && (
+          <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-slate-400 dark:border-slate-700">No income yet.</div>
+        )}
+        {filtered.map((r) => (
+          <Card key={r.id} className="p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="font-semibold text-slate-900 dark:text-white">{r.description}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">{r.date} • {r.method || "—"}</div>
+              </div>
+              <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " +
+                (r.source === "Sale"
+                  ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
+                  : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300")}>
+                {r.source}
+              </span>
+            </div>
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-lg font-bold text-emerald-600">{fmtMoney(r.amount, cur)}</span>
+              {r.editable && (
+                <button onClick={() => removeManual(r.id)} className="text-sm text-rose-500">🗑 Delete</button>
+              )}
+            </div>
+          </Card>
+        ))}
+        {filtered.length > 0 && (
+          <Card className="flex items-center justify-between p-4 font-bold text-slate-900 dark:text-white">
+            <span>Total</span><span>{fmtMoney(total, cur)}</span>
+          </Card>
+        )}
+      </div>
 
       <Modal open={addOpen} title="Add Manual Income" onClose={() => setAddOpen(false)}>
         <div className="space-y-4">

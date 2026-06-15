@@ -39,7 +39,7 @@ router.post("/login", async (req, res) => {
     if (!user) return res.status(400).json({ error: "No account found. Please register." });
 
     const emailOk = String(user.email).toLowerCase() === String(email).toLowerCase();
-    const passOk = emailOk && (await bcrypt.compare(password, user.passwordHash));
+    const passOk = emailOk && (await bcrypt.compare(password, user.password_hash));
     if (!emailOk || !passOk)
       return res.status(401).json({ error: "Invalid email or password" });
 

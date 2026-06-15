@@ -141,7 +141,8 @@ export default function Sales() {
         <Button onClick={() => { setForm(emptySale); setAddOpen(true); }}>+ New Sale</Button>
       </div>
 
-      <Card className="overflow-x-auto p-0">
+      {/* Desktop / tablet: table */}
+      <Card className="hidden overflow-x-auto p-0 md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-xs font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-400">
@@ -197,10 +198,48 @@ export default function Sales() {
         </table>
       </Card>
 
+      {/* Mobile: cards */}
+      <div className="space-y-3 md:hidden">
+        {filtered.length === 0 && (
+          <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-slate-400 dark:border-slate-700">No sales yet.</div>
+        )}
+        {filtered.map((s) => (
+          <Card key={s.id} className="p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="font-bold text-slate-900 dark:text-white">{s.customerName}</div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">{s.invoiceNo} • {s.mobile}</div>
+              </div>
+              <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " +
+                (s.due <= 0
+                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                  : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300")}>
+                {s.due <= 0 ? "Cleared" : "Pending"}
+              </span>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+              <div><div className="text-xs text-slate-400">Total</div><div className="font-semibold text-slate-800 dark:text-slate-100">{fmtMoney(s.total, cur)}</div></div>
+              <div><div className="text-xs text-slate-400">Paid</div><div className="font-semibold text-emerald-600">{fmtMoney(s.paid, cur)}</div></div>
+              <div><div className="text-xs text-slate-400">Due</div><div className="font-semibold text-rose-600">{fmtMoney(s.due, cur)}</div></div>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {s.due > 0 && (
+                <button onClick={() => { setPayFor(s); setPay({ amount: String(s.due), method: "POS", date: today(), delivered: true }); }}
+                  className="flex-1 rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white">Clear Due</button>
+              )}
+              <button onClick={() => openInvoice(s.id)}
+                className="flex-1 rounded-md bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200">Invoice</button>
+              <button onClick={async () => { if (confirm("Delete this sale?")) { await api.deleteSale(activeId, s.id); load(); } }}
+                className="rounded-md px-3 py-2 text-xs font-semibold text-rose-500">Delete</button>
+            </div>
+          </Card>
+        ))}
+      </div>
+
       {/* New Sale modal */}
       <Modal open={addOpen} title="New Optical Sale" onClose={() => setAddOpen(false)}>
         <div className="max-h-[70vh] space-y-4 overflow-auto pr-1">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input label="Customer Name" value={form.customerName} onChange={set("customerName")} />
             <Input label="Mobile Number" value={form.mobile} onChange={set("mobile")} />
           </div>
@@ -262,7 +301,7 @@ export default function Sales() {
 
           <Input label="Lens Quality" value={form.lensQuality} onChange={set("lensQuality")} placeholder="e.g. Blue-cut anti-glare" />
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input label="Frame Price" type="number" value={form.framePrice} onChange={set("framePrice")} />
             <Input label="Lens Price" type="number" value={form.lensPrice} onChange={set("lensPrice")} />
           </div>
@@ -282,7 +321,7 @@ export default function Sales() {
               <span className="font-bold text-rose-600">{fmtMoney(due, cur)}</span></div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input label="Advance Paid" type="number" value={form.advance} onChange={set("advance")} />
             <label className="block">
               <span className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">Advance Sent To</span>
