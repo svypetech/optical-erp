@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: business-ledger
+    runtime: node
+    plan: starter            # ~$7/mo, always-on. Use "free" to try (sleeps when idle).
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: DATA_DIR
+        value: /var/data
+      - key: JWT_SECRET
+        generateValue: true   # Render creates a strong secret automatically
+    disk:
+      name: ledger-data
+      mountPath: /var/data    # SQLite file lives here; persists across deploys
+      sizeGB: 1

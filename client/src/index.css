@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* When printing, hide the app and show only the invoice (which uses print:* utilities). */
+@media print {
+  /* Use A5-ish margins and let content scale to one page */
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+
+  /* Pin the invoice to the top-left and constrain it to a single page */
+  .print-area {
+    position: absolute !important;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Tighten vertical spacing so everything fits on one page */
+  .print-area * {
+    line-height: 1.25 !important;
+  }
+  .print-area table td,
+  .print-area table th {
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+  }
+
+  /* Avoid breaking the invoice across pages */
+  .print-area {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
