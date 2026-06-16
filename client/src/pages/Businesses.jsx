@@ -185,7 +185,7 @@ export default function Businesses() {
       </Modal>
 
       {/* Change PIN modal */}
-      <Modal open={!!pinModal} title={`Change PIN — ${pinModal?.name}`} onClose={() => setPinModal(null)}>
+      <Modal open={!!pinModal} title={`Change PIN - ${pinModal?.name || ""}`} onClose={() => setPinModal(null)}>
         <div className="space-y-4">
           {pinModal?.hasPIN && (
             <Input
