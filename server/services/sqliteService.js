@@ -620,7 +620,7 @@ module.exports = {
   listExpenses, addExpense, updateExpense, deleteExpense,
   listSales, getSale, createSale: createSaleImpl, addSalePayment, deleteSale, listPayments,
   listCustomers, findCustomerByNameMobile, createCustomer, updateCustomer, getCustomerLedger,
-  listAccounts, listAccountsWithBalances, createAccount, updateAccount, deleteAccount, accountBalance,
+  listAccounts, createAccount, updateAccount, deleteAccount,
   listTransfers, createTransfer, deleteTransfer,
   listDayClosings, getTodayClosing, startDayClosing, updateClosingActual, confirmDayClosing,
   getBusinessFilePath,
