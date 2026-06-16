@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS businesses (
   phone      TEXT DEFAULT '',
   logo_url   TEXT DEFAULT '',
   notes      TEXT DEFAULT '',
+  pin_hash   TEXT DEFAULT '',
   created_at TEXT NOT NULL
 );
 
@@ -102,5 +103,17 @@ CREATE TABLE IF NOT EXISTS payments (
 CREATE INDEX IF NOT EXISTS idx_payments_biz ON payments(business_id);
 CREATE INDEX IF NOT EXISTS idx_payments_sale ON payments(sale_id);
 `);
+
+// Migrations — safe to run on every start (ADD COLUMN IF NOT EXISTS not available
+// in older SQLite, so we catch the "duplicate column" error silently).
+try { db.exec("ALTER TABLE businesses ADD COLUMN pin_hash TEXT DEFAULT ''"); } catch (_) {}
+try { db.exec("ALTER TABLE customers ADD COLUMN r_sph TEXT DEFAULT ''"); } catch (_) {}
+try { db.exec("ALTER TABLE customers ADD COLUMN r_cyl TEXT DEFAULT ''"); } catch (_) {}
+try { db.exec("ALTER TABLE customers ADD COLUMN r_axis TEXT DEFAULT ''"); } catch (_) {}
+try { db.exec("ALTER TABLE customers ADD COLUMN r_add TEXT DEFAULT ''"); } catch (_) {}
+try { db.exec("ALTER TABLE customers ADD COLUMN l_sph TEXT DEFAULT ''"); } catch (_) {}
+try { db.exec("ALTER TABLE customers ADD COLUMN l_cyl TEXT DEFAULT ''"); } catch (_) {}
+try { db.exec("ALTER TABLE customers ADD COLUMN l_axis TEXT DEFAULT ''"); } catch (_) {}
+try { db.exec("ALTER TABLE customers ADD COLUMN l_add TEXT DEFAULT ''"); } catch (_) {}
 
 module.exports = db;

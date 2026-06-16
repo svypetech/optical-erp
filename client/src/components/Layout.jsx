@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { Button } from "./ui";
+import PinLock from "./PinLock";
 
 const links = [
   { to: "/", label: "Dashboard", icon: "▦", end: true },
@@ -15,7 +16,8 @@ const links = [
 ];
 
 export default function Layout({ children }) {
-  const { email, logout, dark, setDark, businesses, activeId, selectBusiness } = useApp();
+  const { email, logout, dark, setDark, businesses, activeId, selectBusiness,
+          pinLock, pinBusiness, onPinUnlocked } = useApp();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
@@ -114,6 +116,15 @@ export default function Layout({ children }) {
 
         <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
       </div>
+
+      {/* PIN lock overlay — covers everything when locked */}
+      {pinLock && pinBusiness && (
+        <PinLock
+          business={pinBusiness}
+          onUnlock={onPinUnlocked}
+          reason={pinLock}
+        />
+      )}
     </div>
   );
 }

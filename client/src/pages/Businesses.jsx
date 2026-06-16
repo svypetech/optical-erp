@@ -7,20 +7,42 @@ const CURRENCIES = ["USD", "EUR", "GBP", "PKR", "INR", "JPY", "AUD", "CAD"];
 
 export default function Businesses() {
   const { businesses, refreshBusinesses, selectBusiness, activeId } = useApp();
-  const [modal, setModal] = useState(null); // null | {} | business
-  const empty = { name: "", currency: "USD", address: "", phone: "", logoUrl: "", notes: "" };
+  const [modal, setModal] = useState(null);
+  const empty = { name: "", currency: "USD", address: "", phone: "", logoUrl: "", notes: "", pin: "" };
   const [form, setForm] = useState(empty);
 
-  const openAdd = () => {
-    setForm(empty);
-    setModal({});
-  };
+  // Change PIN modal
+  const [pinModal, setPinModal] = useState(null); // null | business
+  const [pinForm, setPinForm] = useState({ currentPin: "", newPin: "", confirmPin: "" });
+  const [pinError, setPinError] = useState("");
+  const [pinSuccess, setPinSuccess] = useState(false);
+
+  const openAdd = () => { setForm(empty); setModal({}); };
   const openEdit = (b) => {
     setForm({
       name: b.name, currency: b.currency, address: b.address || "",
-      phone: b.phone || "", logoUrl: b.logoUrl || "", notes: b.notes,
+      phone: b.phone || "", logoUrl: b.logoUrl || "", notes: b.notes, pin: "",
     });
     setModal(b);
+  };
+
+  const openChangePin = (b) => {
+    setPinModal(b);
+    setPinForm({ currentPin: "", newPin: "", confirmPin: "" });
+    setPinError("");
+    setPinSuccess(false);
+  };
+
+  const savePin = async () => {
+    setPinError("");
+    if (!/^\d{4}$/.test(pinForm.newPin)) { setPinError("New PIN must be exactly 4 digits."); return; }
+    if (pinForm.newPin !== pinForm.confirmPin) { setPinError("PINs don't match."); return; }
+    try {
+      await api.changePin(pinModal.id, pinForm.currentPin || undefined, pinForm.newPin);
+      setPinSuccess(true);
+      await refreshBusinesses();
+      setTimeout(() => setPinModal(null), 1200);
+    } catch (e) { setPinError(e.message); }
   };
 
   const save = async () => {
@@ -32,7 +54,7 @@ export default function Businesses() {
   };
 
   const remove = async (b) => {
-    if (!confirm(`Delete "${b.name}" and its Excel file? This cannot be undone.`)) return;
+    if (!confirm(`Delete "${b.name}"? This cannot be undone.`)) return;
     await api.deleteBusiness(b.id);
     await refreshBusinesses();
   };
@@ -70,12 +92,9 @@ export default function Businesses() {
               <Button variant="secondary" className="flex-1" onClick={() => selectBusiness(b.id)}>
                 Select
               </Button>
-              <Button variant="ghost" onClick={() => openEdit(b)}>
-                Edit
-              </Button>
-              <Button variant="ghost" onClick={() => remove(b)}>
-                Delete
-              </Button>
+              <Button variant="ghost" onClick={() => openEdit(b)}>Edit</Button>
+              <Button variant="ghost" onClick={() => openChangePin(b)}>Change PIN</Button>
+              <Button variant="ghost" onClick={() => remove(b)}>Delete</Button>
             </div>
           </Card>
         ))}
@@ -121,10 +140,14 @@ export default function Businesses() {
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
           />
-          <div>
-            <span className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
-              Shop Logo (PNG/JPG, optional)
-            </span>
+          <Input
+            label={modal?.id ? "Change PIN (leave blank to keep current)" : "4-Digit PIN *"}
+            value={form.pin || ""}
+            onChange={(e) => setForm({ ...form, pin: e.target.value.replace(/\D/g, "").slice(0, 4) })}
+            placeholder="e.g. 1234"
+            inputMode="numeric"
+            maxLength={4}
+          />
             <input
               type="file"
               accept="image/png,image/jpeg"
@@ -155,10 +178,54 @@ export default function Businesses() {
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
           />
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="secondary" onClick={() => setModal(null)}>
-              Cancel
-            </Button>
+            <Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button>
             <Button onClick={save}>Save</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Change PIN modal */}
+      <Modal open={!!pinModal} title={`Change PIN — ${pinModal?.name}`} onClose={() => setPinModal(null)}>
+        <div className="space-y-4">
+          {pinModal?.hasPIN && (
+            <Input
+              label="Current PIN"
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              value={pinForm.currentPin}
+              onChange={(e) => setPinForm({ ...pinForm, currentPin: e.target.value.replace(/\D/g,"").slice(0,4) })}
+              placeholder="Enter current 4-digit PIN"
+            />
+          )}
+          {!pinModal?.hasPIN && (
+            <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+              This business has no PIN set yet. Set one now.
+            </div>
+          )}
+          <Input
+            label="New PIN"
+            type="password"
+            inputMode="numeric"
+            maxLength={4}
+            value={pinForm.newPin}
+            onChange={(e) => setPinForm({ ...pinForm, newPin: e.target.value.replace(/\D/g,"").slice(0,4) })}
+            placeholder="New 4-digit PIN"
+          />
+          <Input
+            label="Confirm New PIN"
+            type="password"
+            inputMode="numeric"
+            maxLength={4}
+            value={pinForm.confirmPin}
+            onChange={(e) => setPinForm({ ...pinForm, confirmPin: e.target.value.replace(/\D/g,"").slice(0,4) })}
+            placeholder="Repeat new PIN"
+          />
+          {pinError && <p className="text-sm font-semibold text-rose-600">{pinError}</p>}
+          {pinSuccess && <p className="text-sm font-semibold text-emerald-600">PIN changed successfully!</p>}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" onClick={() => setPinModal(null)}>Cancel</Button>
+            <Button onClick={savePin}>Save PIN</Button>
           </div>
         </div>
       </Modal>

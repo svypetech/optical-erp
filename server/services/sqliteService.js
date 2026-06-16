@@ -12,6 +12,7 @@ const PAY_METHODS = ["POS", "EasyPaisa", "JazzCash", "Bank", "Cash USD", "Crypto
 const mapBusiness = (r) => r && ({
   id: r.id, name: r.name, currency: r.currency, address: r.address || "",
   phone: r.phone || "", logoUrl: r.logo_url || "", notes: r.notes || "",
+  pinHash: r.pin_hash || "",
   createdAt: r.created_at,
 });
 const mapCustomerBase = (r) => r && ({
@@ -59,11 +60,11 @@ async function listBusinesses() {
 async function getBusiness(id) {
   return mapBusiness(db.prepare("SELECT * FROM businesses WHERE id=?").get(id));
 }
-async function createBusiness({ name, currency, notes, address, phone, logoUrl }) {
+async function createBusiness({ name, currency, notes, address, phone, logoUrl, pinHash }) {
   const b = { id: newId(), createdAt: new Date().toISOString() };
-  db.prepare(`INSERT INTO businesses (id,name,currency,address,phone,logo_url,notes,created_at)
-              VALUES (?,?,?,?,?,?,?,?)`)
-    .run(b.id, name, currency || "USD", address || "", phone || "", logoUrl || "", notes || "", b.createdAt);
+  db.prepare(`INSERT INTO businesses (id,name,currency,address,phone,logo_url,notes,pin_hash,created_at)
+              VALUES (?,?,?,?,?,?,?,?,?)`)
+    .run(b.id, name, currency || "USD", address || "", phone || "", logoUrl || "", notes || "", pinHash || "", b.createdAt);
   return getBusiness(b.id);
 }
 async function updateBusiness(id, patch) {
@@ -76,9 +77,10 @@ async function updateBusiness(id, patch) {
     phone: patch.phone ?? cur.phone,
     logo_url: patch.logoUrl !== undefined ? patch.logoUrl : cur.logo_url,
     notes: patch.notes ?? cur.notes,
+    pin_hash: patch.pinHash !== undefined ? patch.pinHash : cur.pin_hash,
   };
-  db.prepare(`UPDATE businesses SET name=?,currency=?,address=?,phone=?,logo_url=?,notes=? WHERE id=?`)
-    .run(next.name, next.currency, next.address, next.phone, next.logo_url, next.notes, id);
+  db.prepare(`UPDATE businesses SET name=?,currency=?,address=?,phone=?,logo_url=?,notes=?,pin_hash=? WHERE id=?`)
+    .run(next.name, next.currency, next.address, next.phone, next.logo_url, next.notes, next.pin_hash, id);
   return getBusiness(id);
 }
 async function deleteBusiness(id) {

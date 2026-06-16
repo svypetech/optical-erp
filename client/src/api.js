@@ -36,6 +36,8 @@ export const api = {
   createBusiness: (b) => request("/businesses", { method: "POST", body: b }),
   updateBusiness: (id, b) => request(`/businesses/${id}`, { method: "PUT", body: b }),
   deleteBusiness: (id) => request(`/businesses/${id}`, { method: "DELETE" }),
+  verifyPin: (id, pin, newPin) => request(`/businesses/${id}/verify-pin`, { method: "POST", body: { pin, newPin } }),
+  changePin: (id, currentPin, newPin) => request(`/businesses/${id}/change-pin`, { method: "POST", body: { currentPin, newPin } }),
 
   // income
   listIncome: (bid) => request(`/businesses/${bid}/income`),
