@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { Button } from "./ui";
 import PinLock from "./PinLock";
+import BusinessPicker from "./BusinessPicker";
 
 const links = [
   { to: "/", label: "Dashboard", icon: "▦", end: true },
@@ -121,8 +122,11 @@ export default function Layout({ children }) {
         <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
       </div>
 
+      {/* Business picker — shown after login so user chooses which business to open */}
+      {pinLock === "select" && <BusinessPicker />}
+
       {/* PIN lock overlay — covers everything when locked */}
-      {pinLock && pinBusiness && (
+      {pinLock && pinLock !== "select" && pinBusiness && (
         <PinLock
           business={pinBusiness}
           onUnlock={onPinUnlocked}

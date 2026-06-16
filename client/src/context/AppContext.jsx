@@ -12,12 +12,15 @@ export function AppProvider({ children }) {
   const [dark, setDark] = useState(() => localStorage.getItem("bl_dark") === "1");
 
   const [businesses, setBusinesses] = useState([]);
-  const [activeId, setActiveId] = useState(() => localStorage.getItem("bl_active") || null);
+  const [activeId, setActiveId] = useState(null);
 
-  // PIN lock state
-  // locked: "login" | "inactivity" | "switch" | null (null = unlocked)
+  // Flow states:
+  // pinLock: null | "select" | "login" | "inactivity" | "switch"
+  // "select" = show business picker
+  // "login"  = business chosen, now enter PIN
+  // "inactivity" = timed out, enter PIN for current business
+  // "switch" = switching to different business, enter its PIN
   const [pinLock, setPinLock] = useState(null);
-  // Which business are we trying to switch to (pending PIN)
   const [pendingSwitchId, setPendingSwitchId] = useState(null);
 
   const inactivityTimer = useRef(null);
@@ -36,7 +39,7 @@ export function AppProvider({ children }) {
   };
 
   useEffect(() => {
-    if (!token || !activeId) return;
+    if (!token || !activeId || pinLock) return;
     const events = ["mousemove", "mousedown", "keydown", "touchstart", "scroll", "click"];
     events.forEach((e) => window.addEventListener(e, resetTimer, { passive: true }));
     resetTimer();
@@ -44,7 +47,7 @@ export function AppProvider({ children }) {
       events.forEach((e) => window.removeEventListener(e, resetTimer));
       if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
     };
-  }, [token, activeId]);
+  }, [token, activeId, pinLock]);
 
   // ---- Auth ----
   const persistAuth = (tkn, mail) => {
@@ -52,87 +55,77 @@ export function AppProvider({ children }) {
     setEmail(mail);
     localStorage.setItem("bl_token", tkn);
     localStorage.setItem("bl_email", mail);
-    // Will trigger refreshBusinesses via useEffect, which then triggers login PIN
   };
 
   const logout = () => {
     setToken(null);
     setEmail("");
+    setActiveId(null);
     setPinLock(null);
     setPendingSwitchId(null);
     if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
     localStorage.removeItem("bl_token");
     localStorage.removeItem("bl_email");
+    localStorage.removeItem("bl_active");
   };
 
   // ---- Businesses ----
   const refreshBusinesses = async () => {
     const list = await api.listBusinesses();
     setBusinesses(list);
-    setActiveId((cur) => {
-      const stillExists = cur && list.some((b) => String(b.id) === String(cur));
-      const next = stillExists ? cur : (list[0]?.id || null);
-      if (next) localStorage.setItem("bl_active", next);
-      return next;
-    });
     return list;
   };
 
-  // After login: load businesses then immediately lock for PIN
+  // After login: load businesses then show business picker
   useEffect(() => {
     if (!token) return;
     refreshBusinesses().then((list) => {
-      if (list.length > 0) setPinLock("login");
+      if (list.length === 0) return;
+      // Always show business picker on login — never auto-resume
+      setActiveId(null);
+      setPinLock("select");
     }).catch(() => {});
   }, [token]);
 
-  // selectBusiness: if switching to a DIFFERENT business, show PIN first
+  // Called from BusinessPicker when a business is chosen
+  const selectBusinessForLogin = (id) => {
+    setPendingSwitchId(id);
+    setPinLock("login");
+  };
+
+  // Switch to a different business while already in one
   const selectBusiness = (id) => {
-    if (String(id) === String(activeId)) return; // same business, no PIN
+    if (String(id) === String(activeId)) return;
     setPendingSwitchId(id);
     setPinLock("switch");
   };
 
   // Called by PinLock when correct PIN entered
   const onPinUnlocked = () => {
-    if (pendingSwitchId) {
-      setActiveId(pendingSwitchId);
-      localStorage.setItem("bl_active", pendingSwitchId);
-      setPendingSwitchId(null);
-    }
+    const targetId = pendingSwitchId || activeId;
+    setActiveId(targetId);
+    localStorage.setItem("bl_active", targetId);
+    setPendingSwitchId(null);
     setPinLock(null);
     resetTimer();
   };
 
-  const activeBusiness =
-    businesses.find((b) => String(b.id) === String(
-      pinLock === "switch" && pendingSwitchId ? pendingSwitchId : activeId
-    )) || null;
-
-  // The business to show on PIN lock screen
-  const pinBusiness = pinLock === "switch" && pendingSwitchId
-    ? businesses.find((b) => String(b.id) === String(pendingSwitchId))
-    : businesses.find((b) => String(b.id) === String(activeId));
+  // The business we're entering PIN for
+  const pinBusiness =
+    pendingSwitchId
+      ? businesses.find((b) => String(b.id) === String(pendingSwitchId))
+      : businesses.find((b) => String(b.id) === String(activeId));
 
   return (
-    <AppCtx.Provider
-      value={{
-        token,
-        email,
-        persistAuth,
-        logout,
-        dark,
-        setDark,
-        businesses,
-        activeId,
-        activeBusiness: businesses.find((b) => String(b.id) === String(activeId)) || null,
-        selectBusiness,
-        refreshBusinesses,
-        pinLock,
-        pinBusiness,
-        onPinUnlocked,
-      }}
-    >
+    <AppCtx.Provider value={{
+      token, email, persistAuth, logout,
+      dark, setDark,
+      businesses, activeId,
+      activeBusiness: businesses.find((b) => String(b.id) === String(activeId)) || null,
+      selectBusiness, selectBusinessForLogin,
+      refreshBusinesses,
+      pinLock, pinBusiness, onPinUnlocked,
+    }}>
       {children}
     </AppCtx.Provider>
   );
