@@ -353,7 +353,7 @@ export default function Sales() {
       </Modal>
 
       {/* Clear Due modal */}
-      <Modal open={!!payFor} title={`Clear Due — ${payFor?.invoiceNo || ""}`} onClose={() => setPayFor(null)}>
+      <Modal open={!!payFor} title={`Clear Due - ${payFor?.invoiceNo || ""}`} onClose={() => setPayFor(null)}>
         <div className="space-y-4">
           <div className="text-sm text-slate-500 dark:text-slate-400">
             Balance due: <span className="font-bold text-rose-600">{fmtMoney(payFor?.due || 0, cur)}</span>

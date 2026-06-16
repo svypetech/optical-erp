@@ -164,7 +164,7 @@ export default function Dashboard() {
         </ResponsiveContainer>
       </Card>
 
-      <Modal open={csvOpen} title="Export CSV — choose date range" onClose={() => setCsvOpen(false)}>
+      <Modal open={csvOpen} title="Export CSV - choose date range" onClose={() => setCsvOpen(false)}>
         <div className="space-y-4">
           <p className="text-sm text-slate-500 dark:text-slate-400">
             Leave a field blank to include everything before/after the other date.
