@@ -28,13 +28,15 @@ export default function Sales() {
   const [addOpen, setAddOpen] = useState(false);
   const [invoiceSale, setInvoiceSale] = useState(null);
   const [payFor, setPayFor] = useState(null); // sale awaiting balance payment
-  const [pay, setPay] = useState({ amount: "", method: "POS", date: today(), delivered: true });
+  const [pay, setPay] = useState({ amount: "", method: "POS", date: today(), delivered: true, accountId: "" });
+  const [accounts, setAccounts] = useState([]);
   const [custMatch, setCustMatch] = useState(null); // matched existing customer
   const [linkChoice, setLinkChoice] = useState(null); // "existing" | "new" | null
 
   const load = async () => {
     if (!activeId) return;
     setSales(await api.listSales(activeId));
+    setAccounts(await api.listAccounts(activeId));
   };
   useEffect(() => { load().catch(() => {}); }, [activeId]);
 
@@ -91,11 +93,11 @@ export default function Sales() {
     if (amt <= 0) return alert("Enter an amount");
     const saleRef = payFor;
     await api.addSalePayment(activeId, saleRef.id, {
-      amount: amt, method: pay.method, date: pay.date, kind: "Balance",
+      amount: amt, method: pay.method, date: pay.date, kind: "Balance", accountId: pay.accountId,
     });
     const wasDelivered = pay.delivered;
     setPayFor(null);
-    setPay({ amount: "", method: "POS", date: today(), delivered: true });
+    setPay({ amount: "", method: "POS", date: today(), delivered: true, accountId: "" });
     await load();
 
     // If delivered, open WhatsApp with a prefilled (editable) delivery message.
@@ -178,7 +180,7 @@ export default function Sales() {
                 </td>
                 <td className="px-3 py-3 text-right whitespace-nowrap">
                   {s.due > 0 && (
-                    <button onClick={() => { setPayFor(s); setPay({ amount: String(s.due), method: "POS", date: today(), delivered: true }); }}
+                    <button onClick={() => { setPayFor(s); setPay({ amount: String(s.due), method: "POS", date: today(), delivered: true, accountId: "" }); }}
                       className="mr-2 rounded-md bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300">
                       Clear Due
                     </button>
@@ -224,7 +226,7 @@ export default function Sales() {
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               {s.due > 0 && (
-                <button onClick={() => { setPayFor(s); setPay({ amount: String(s.due), method: "POS", date: today(), delivered: true }); }}
+                <button onClick={() => { setPayFor(s); setPay({ amount: String(s.due), method: "POS", date: today(), delivered: true, accountId: "" }); }}
                   className="flex-1 rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white">Clear Due</button>
               )}
               <button onClick={() => openInvoice(s.id)}
@@ -330,6 +332,14 @@ export default function Sales() {
                 {METHODS.map((m) => <option key={m}>{m}</option>)}
               </select>
             </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">Received Into Account</span>
+              <select value={form.advanceAccountId || ""} onChange={set("advanceAccountId")}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-white">
+                <option value="">-- Select account (optional) --</option>
+                {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </label>
           </div>
 
           <Input label="Delivery Date" type="date" value={form.deliveryDate} onChange={set("deliveryDate")} />
@@ -359,6 +369,14 @@ export default function Sales() {
           </label>
           <Input label="Date Received" type="date" value={pay.date}
             onChange={(e) => setPay({ ...pay, date: e.target.value })} />
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">Received Into Account</span>
+            <select value={pay.accountId} onChange={(e) => setPay({ ...pay, accountId: e.target.value })}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-white">
+              <option value="">-- Select account (optional) --</option>
+              {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+          </label>
           <label className="flex items-center gap-2 rounded-lg bg-slate-50 p-3 text-sm dark:bg-slate-900">
             <input type="checkbox" checked={pay.delivered}
               onChange={(e) => setPay({ ...pay, delivered: e.target.checked })}

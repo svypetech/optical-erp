@@ -13,6 +13,7 @@ export default function Expenses() {
       addFn={api.addExpense}
       updateFn={api.updateExpense}
       deleteFn={api.deleteExpense}
+      showCategory={true}
     />
   );
 }

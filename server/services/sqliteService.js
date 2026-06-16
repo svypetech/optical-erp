@@ -21,9 +21,46 @@ const mapCustomerBase = (r) => r && ({
   lSph: r.l_sph || "", lCyl: r.l_cyl || "", lAxis: r.l_axis || "", lAdd: r.l_add || "",
   notes: r.notes || "", createdAt: r.created_at,
 });
-const mapIncome = (r) => ({ id: r.id, customerName: r.customer_name || "", date: String(r.date), amount: Number(r.amount) || 0, notes: r.notes || "" });
-const mapExpense = (r) => ({ id: r.id, expenseName: r.expense_name || "", date: String(r.date), amount: Number(r.amount) || 0, notes: r.notes || "" });
-const mapPayment = (r) => ({ id: r.id, saleId: r.sale_id, invoiceNo: r.invoice_no, customerName: r.customer_name || "", date: String(r.date), amount: Number(r.amount) || 0, method: r.method, kind: r.kind });
+const mapIncome = (r) => ({
+  id: r.id, customerName: r.customer_name || "", date: String(r.date),
+  amount: Number(r.amount) || 0, accountId: r.account_id || "", notes: r.notes || ""
+});
+const mapExpense = (r) => ({
+  id: r.id, expenseName: r.expense_name || "", category: r.category || "Business",
+  date: String(r.date), amount: Number(r.amount) || 0,
+  accountId: r.account_id || "", notes: r.notes || ""
+});
+const mapPayment = (r) => ({
+  id: r.id, saleId: r.sale_id, invoiceNo: r.invoice_no,
+  customerName: r.customer_name || "", date: String(r.date),
+  amount: Number(r.amount) || 0, method: r.method,
+  accountId: r.account_id || "", kind: r.kind
+});
+const mapAccount = (r) => ({
+  id: r.id, name: r.name, type: r.type || "cash",
+  openingBalance: Number(r.opening_balance) || 0,
+  sortOrder: Number(r.sort_order) || 0, createdAt: r.created_at,
+});
+const mapTransfer = (r) => ({
+  id: r.id, date: String(r.date),
+  fromAccountId: r.from_account_id, toAccountId: r.to_account_id,
+  amount: Number(r.amount) || 0, notes: r.notes || "",
+});
+const mapClosing = (r) => ({
+  id: r.id, date: String(r.date),
+  expectedTotal: Number(r.expected_total) || 0,
+  actualTotal: Number(r.actual_total) || 0,
+  difference: Number(r.difference) || 0,
+  status: r.status || "Open", notes: r.notes || "",
+  closedAt: r.closed_at || "",
+});
+const mapClosingEntry = (r) => ({
+  id: r.id, closingId: r.closing_id, accountId: r.account_id,
+  accountName: r.account_name,
+  expectedBalance: Number(r.expected_balance) || 0,
+  actualBalance: Number(r.actual_balance) || 0,
+  difference: Number(r.difference) || 0,
+});
 const mapSaleBase = (r) => ({
   id: r.id, invoiceNo: r.invoice_no, customerId: r.customer_id || "", saleDate: String(r.sale_date),
   customerName: r.customer_name || "", mobile: r.mobile || "",
@@ -95,9 +132,9 @@ async function listIncome(businessId) {
   return db.prepare("SELECT * FROM income WHERE business_id=? ORDER BY date DESC").all(businessId).map(mapIncome);
 }
 async function addIncome(businessId, e) {
-  const row = { id: newId(), customerName: e.customerName || "", date: e.date || todayStr(), amount: Number(e.amount) || 0, notes: e.notes || "" };
-  db.prepare("INSERT INTO income (id,business_id,customer_name,date,amount,notes) VALUES (?,?,?,?,?,?)")
-    .run(row.id, businessId, row.customerName, row.date, row.amount, row.notes);
+  const row = { id: newId(), customerName: e.customerName || "", date: e.date || todayStr(), amount: Number(e.amount) || 0, accountId: e.accountId || "", notes: e.notes || "" };
+  db.prepare("INSERT INTO income (id,business_id,customer_name,date,amount,account_id,notes) VALUES (?,?,?,?,?,?,?)")
+    .run(row.id, businessId, row.customerName, row.date, row.amount, row.accountId, row.notes);
   return row;
 }
 async function updateIncome(businessId, id, patch) {
@@ -107,10 +144,11 @@ async function updateIncome(businessId, id, patch) {
     customer_name: patch.customerName ?? cur.customer_name,
     date: patch.date ?? cur.date,
     amount: patch.amount !== undefined ? Number(patch.amount) : cur.amount,
+    account_id: patch.accountId !== undefined ? patch.accountId : cur.account_id,
     notes: patch.notes ?? cur.notes,
   };
-  db.prepare("UPDATE income SET customer_name=?,date=?,amount=?,notes=? WHERE id=?")
-    .run(next.customer_name, next.date, next.amount, next.notes, id);
+  db.prepare("UPDATE income SET customer_name=?,date=?,amount=?,account_id=?,notes=? WHERE id=?")
+    .run(next.customer_name, next.date, next.amount, next.account_id, next.notes, id);
   return mapIncome(db.prepare("SELECT * FROM income WHERE id=?").get(id));
 }
 async function deleteIncome(businessId, id) {
@@ -125,9 +163,9 @@ async function listExpenses(businessId) {
   return db.prepare("SELECT * FROM expenses WHERE business_id=? ORDER BY date DESC").all(businessId).map(mapExpense);
 }
 async function addExpense(businessId, e) {
-  const row = { id: newId(), expenseName: e.expenseName || "", date: e.date || todayStr(), amount: Number(e.amount) || 0, notes: e.notes || "" };
-  db.prepare("INSERT INTO expenses (id,business_id,expense_name,date,amount,notes) VALUES (?,?,?,?,?,?)")
-    .run(row.id, businessId, row.expenseName, row.date, row.amount, row.notes);
+  const row = { id: newId(), expenseName: e.expenseName || "", category: e.category || "Business", date: e.date || todayStr(), amount: Number(e.amount) || 0, accountId: e.accountId || "", notes: e.notes || "" };
+  db.prepare("INSERT INTO expenses (id,business_id,expense_name,category,date,amount,account_id,notes) VALUES (?,?,?,?,?,?,?,?)")
+    .run(row.id, businessId, row.expenseName, row.category, row.date, row.amount, row.accountId, row.notes);
   return row;
 }
 async function updateExpense(businessId, id, patch) {
@@ -135,12 +173,14 @@ async function updateExpense(businessId, id, patch) {
   if (!cur) return null;
   const next = {
     expense_name: patch.expenseName ?? cur.expense_name,
+    category: patch.category ?? cur.category,
     date: patch.date ?? cur.date,
     amount: patch.amount !== undefined ? Number(patch.amount) : cur.amount,
+    account_id: patch.accountId !== undefined ? patch.accountId : cur.account_id,
     notes: patch.notes ?? cur.notes,
   };
-  db.prepare("UPDATE expenses SET expense_name=?,date=?,amount=?,notes=? WHERE id=?")
-    .run(next.expense_name, next.date, next.amount, next.notes, id);
+  db.prepare("UPDATE expenses SET expense_name=?,category=?,date=?,amount=?,account_id=?,notes=? WHERE id=?")
+    .run(next.expense_name, next.category, next.date, next.amount, next.account_id, next.notes, id);
   return mapExpense(db.prepare("SELECT * FROM expenses WHERE id=?").get(id));
 }
 async function deleteExpense(businessId, id) {
@@ -297,26 +337,26 @@ async function createSaleImpl(businessId, data) {
       framePrice, lensPrice, subtotal, discountPct, discountAmount, total, data.deliveryDate || "", status, data.notes || "");
 
   if (advance > 0) {
-    db.prepare(`INSERT INTO payments (id,business_id,sale_id,invoice_no,customer_name,date,amount,method,kind)
-                VALUES (?,?,?,?,?,?,?,?,?)`)
+    db.prepare(`INSERT INTO payments (id,business_id,sale_id,invoice_no,customer_name,date,amount,method,account_id,kind)
+                VALUES (?,?,?,?,?,?,?,?,?,?)`)
       .run(newId(), businessId, saleId, invoiceNo, data.customerName || "", saleDate, advance,
-        PAY_METHODS.includes(data.advanceMethod) ? data.advanceMethod : "POS", "Advance");
+        PAY_METHODS.includes(data.advanceMethod) ? data.advanceMethod : "Cash",
+        data.advanceAccountId || "", "Advance");
   }
   return getSale(businessId, saleId);
 }
 
-async function addSalePayment(businessId, saleId, { amount, method, date, kind }) {
+async function addSalePayment(businessId, saleId, { amount, method, date, kind, accountId }) {
   const sale = db.prepare("SELECT * FROM sales WHERE id=? AND business_id=?").get(saleId, businessId);
   if (!sale) return null;
   const payDate = date || todayStr();
-  db.prepare(`INSERT INTO payments (id,business_id,sale_id,invoice_no,customer_name,date,amount,method,kind)
-              VALUES (?,?,?,?,?,?,?,?,?)`)
-    .run(newId(), businessId, saleId, sale.invoice_no, sale.customer_name, payDate, Number(amount) || 0,
-      PAY_METHODS.includes(method) ? method : "POS", kind || "Balance");
+  db.prepare(`INSERT INTO payments (id,business_id,sale_id,invoice_no,customer_name,date,amount,method,account_id,kind)
+              VALUES (?,?,?,?,?,?,?,?,?,?)`)
+    .run(newId(), businessId, saleId, sale.invoice_no, sale.customer_name, payDate,
+      Number(amount) || 0, method || "Cash", accountId || "", kind || "Balance");
   const paid = paidForSale(saleId);
   const status = paid >= Number(sale.total) ? "Cleared" : "Pending";
-  const delivery = sale.delivery_date || (date || "");
-  db.prepare("UPDATE sales SET status=?, delivery_date=? WHERE id=?").run(status, delivery, saleId);
+  db.prepare("UPDATE sales SET status=?, delivery_date=? WHERE id=?").run(status, date || "", saleId);
   return getSale(businessId, saleId);
 }
 
@@ -411,6 +451,168 @@ async function getBusinessFilePath(businessId) {
   return tmp;
 }
 
+// ===========================================================================
+// ACCOUNTS
+// ===========================================================================
+async function listAccounts(businessId) {
+  return db.prepare("SELECT * FROM accounts WHERE business_id=? ORDER BY sort_order,created_at").all(businessId).map(mapAccount);
+}
+async function createAccount(businessId, { name, type, openingBalance, sortOrder }) {
+  const id = newId();
+  db.prepare("INSERT INTO accounts (id,business_id,name,type,opening_balance,sort_order,created_at) VALUES (?,?,?,?,?,?,?)")
+    .run(id, businessId, name, type || "cash", Number(openingBalance) || 0, Number(sortOrder) || 0, new Date().toISOString());
+  return mapAccount(db.prepare("SELECT * FROM accounts WHERE id=?").get(id));
+}
+async function updateAccount(businessId, id, patch) {
+  const cur = db.prepare("SELECT * FROM accounts WHERE id=? AND business_id=?").get(id, businessId);
+  if (!cur) return null;
+  db.prepare("UPDATE accounts SET name=?,type=?,opening_balance=?,sort_order=? WHERE id=?")
+    .run(patch.name ?? cur.name, patch.type ?? cur.type,
+      patch.openingBalance !== undefined ? Number(patch.openingBalance) : cur.opening_balance,
+      patch.sortOrder !== undefined ? Number(patch.sortOrder) : cur.sort_order, id);
+  return mapAccount(db.prepare("SELECT * FROM accounts WHERE id=?").get(id));
+}
+async function deleteAccount(businessId, id) {
+  db.prepare("DELETE FROM accounts WHERE id=? AND business_id=?").run(id, businessId);
+  return true;
+}
+
+// Compute running balance for an account up to (optional) a given date
+function accountBalance(businessId, accountId, upToDate) {
+  const acc = db.prepare("SELECT * FROM accounts WHERE id=?").get(accountId);
+  if (!acc) return 0;
+  const opening = Number(acc.opening_balance) || 0;
+  const dateFilter = upToDate ? " AND date <= ?" : "";
+  const args = upToDate ? [businessId, accountId, upToDate] : [businessId, accountId];
+
+  const incomeTotal = Number(db.prepare(`SELECT COALESCE(SUM(amount),0) t FROM income WHERE business_id=? AND account_id=?${dateFilter}`).get(...args).t) || 0;
+  const expenseTotal = Number(db.prepare(`SELECT COALESCE(SUM(amount),0) t FROM expenses WHERE business_id=? AND account_id=?${dateFilter}`).get(...args).t) || 0;
+  const paymentTotal = Number(db.prepare(`SELECT COALESCE(SUM(amount),0) t FROM payments WHERE business_id=? AND account_id=?${dateFilter}`).get(...args).t) || 0;
+
+  // Transfers: money leaving this account (from_account_id) or arriving (to_account_id)
+  const fromArgs = upToDate ? [businessId, accountId, upToDate] : [businessId, accountId];
+  const toArgs = upToDate ? [businessId, accountId, upToDate] : [businessId, accountId];
+  const transferOut = Number(db.prepare(`SELECT COALESCE(SUM(amount),0) t FROM account_transfers WHERE business_id=? AND from_account_id=?${dateFilter}`).get(...fromArgs).t) || 0;
+  const transferIn = Number(db.prepare(`SELECT COALESCE(SUM(amount),0) t FROM account_transfers WHERE business_id=? AND to_account_id=?${dateFilter}`).get(...toArgs).t) || 0;
+
+  return opening + incomeTotal + paymentTotal + transferIn - expenseTotal - transferOut;
+}
+
+async function listAccountBalances(businessId) {
+  const accounts = await listAccounts(businessId);
+  return accounts.map((a) => ({ ...a, currentBalance: accountBalance(businessId, a.id) }));
+}
+
+// ===========================================================================
+// TRANSFERS
+// ===========================================================================
+async function listTransfers(businessId) {
+  return db.prepare("SELECT * FROM account_transfers WHERE business_id=? ORDER BY date DESC").all(businessId).map(mapTransfer);
+}
+async function createTransfer(businessId, { date, fromAccountId, toAccountId, amount, notes }) {
+  const id = newId();
+  db.prepare("INSERT INTO account_transfers (id,business_id,date,from_account_id,to_account_id,amount,notes) VALUES (?,?,?,?,?,?,?)")
+    .run(id, businessId, date || todayStr(), fromAccountId, toAccountId, Number(amount) || 0, notes || "");
+  return mapTransfer(db.prepare("SELECT * FROM account_transfers WHERE id=?").get(id));
+}
+async function deleteTransfer(businessId, id) {
+  db.prepare("DELETE FROM account_transfers WHERE id=? AND business_id=?").run(id, businessId);
+  return true;
+}
+
+// ===========================================================================
+// DAY CLOSING
+// ===========================================================================
+async function getOrCreateDayClosing(businessId, date) {
+  const existing = db.prepare("SELECT * FROM day_closings WHERE business_id=? AND date=?").get(businessId, date);
+  if (existing) return mapClosing(existing);
+  const id = newId();
+  db.prepare("INSERT INTO day_closings (id,business_id,date,status) VALUES (?,?,?,'Open')")
+    .run(id, businessId, date);
+  return mapClosing(db.prepare("SELECT * FROM day_closings WHERE id=?").get(id));
+}
+async function getDayClosingWithEntries(businessId, date) {
+  const closing = await getOrCreateDayClosing(businessId, date);
+  const entries = db.prepare("SELECT * FROM day_closing_entries WHERE closing_id=?").all(closing.id).map(mapClosingEntry);
+  const accounts = await listAccountBalances(businessId);
+  // Build expected balances per account
+  const expectedMap = {};
+  accounts.forEach((a) => { expectedMap[a.id] = accountBalance(businessId, a.id, date); });
+  return { closing, entries, accounts, expectedMap };
+}
+async function submitDayClosing(businessId, date, { actualEntries, notes }) {
+  // actualEntries: [{ accountId, actualBalance }]
+  const closing = await getOrCreateDayClosing(businessId, date);
+  const accounts = await listAccounts(businessId);
+
+  // Delete old entries
+  db.prepare("DELETE FROM day_closing_entries WHERE closing_id=?").run(closing.id);
+
+  let expectedTotal = 0;
+  let actualTotal = 0;
+
+  actualEntries.forEach(({ accountId, actualBalance }) => {
+    const acc = accounts.find((a) => a.id === accountId);
+    if (!acc) return;
+    const expected = accountBalance(businessId, accountId, date);
+    const actual = Number(actualBalance) || 0;
+    const diff = actual - expected;
+    expectedTotal += expected;
+    actualTotal += actual;
+    db.prepare(`INSERT INTO day_closing_entries (id,closing_id,account_id,account_name,expected_balance,actual_balance,difference)
+                VALUES (?,?,?,?,?,?,?)`)
+      .run(newId(), closing.id, accountId, acc.name, expected, actual, diff);
+  });
+
+  const difference = actualTotal - expectedTotal;
+  const status = Math.abs(difference) < 0.01 ? "Balanced" : "Difference";
+  db.prepare("UPDATE day_closings SET expected_total=?,actual_total=?,difference=?,status=?,notes=?,closed_at=? WHERE id=?")
+    .run(expectedTotal, actualTotal, difference, status, notes || "", new Date().toISOString(), closing.id);
+  return getDayClosingWithEntries(businessId, date);
+}
+async function listDayClosings(businessId) {
+  return db.prepare("SELECT * FROM day_closings WHERE business_id=? ORDER BY date DESC").all(businessId).map(mapClosing);
+}
+
+// ===========================================================================
+// P&L REPORT BY CATEGORY
+// ===========================================================================
+async function getPnLReport(businessId, from, to) {
+  const expenses = db.prepare("SELECT category, COALESCE(SUM(amount),0) total FROM expenses WHERE business_id=? AND date>=? AND date<=? GROUP BY category")
+    .all(businessId, from, to);
+  const totalIncome = Number(db.prepare("SELECT COALESCE(SUM(amount),0) t FROM income WHERE business_id=? AND date>=? AND date<=?").get(businessId, from, to).t) || 0;
+  const totalPayments = Number(db.prepare("SELECT COALESCE(SUM(amount),0) t FROM payments WHERE business_id=? AND date>=? AND date<=?").get(businessId, from, to).t) || 0;
+  const totalRevenue = totalIncome + totalPayments;
+  const expenseByCategory = {};
+  let totalExpenses = 0;
+  expenses.forEach((r) => { expenseByCategory[r.category] = Number(r.total) || 0; totalExpenses += Number(r.total) || 0; });
+  return {
+    from, to,
+    totalRevenue,
+    expenseByCategory,
+    totalExpenses,
+    netProfit: totalRevenue - totalExpenses,
+  };
+}
+
+// ===========================================================================
+// RECEIVABLES AGING
+// ===========================================================================
+async function getReceivablesAging(businessId) {
+  const today = todayStr();
+  const sales = await listSales(businessId);
+  const withDue = sales.filter((s) => s.due > 0.01);
+  const buckets = { current: [], days7: [], days30: [], older: [] };
+  withDue.forEach((s) => {
+    const days = Math.floor((new Date(today) - new Date(s.saleDate)) / 86400000);
+    if (days <= 7) buckets.current.push({ ...s, daysOld: days });
+    else if (days <= 30) buckets.days7.push({ ...s, daysOld: days });
+    else if (days <= 90) buckets.days30.push({ ...s, daysOld: days });
+    else buckets.older.push({ ...s, daysOld: days });
+  });
+  return buckets;
+}
+
 module.exports = {
   getUser, createUser,
   listBusinesses, getBusiness, createBusiness, updateBusiness, deleteBusiness,
@@ -418,5 +620,70 @@ module.exports = {
   listExpenses, addExpense, updateExpense, deleteExpense,
   listSales, getSale, createSale: createSaleImpl, addSalePayment, deleteSale, listPayments,
   listCustomers, findCustomerByNameMobile, createCustomer, updateCustomer, getCustomerLedger,
+  listAccounts, listAccountsWithBalances, createAccount, updateAccount, deleteAccount, accountBalance,
+  listTransfers, createTransfer, deleteTransfer,
+  listDayClosings, getTodayClosing, startDayClosing, updateClosingActual, confirmDayClosing,
   getBusinessFilePath,
 };
+
+// ============================================================
+// NEW DAY CLOSING FUNCTIONS
+// ============================================================
+async function getTodayClosing(businessId) {
+  const today = todayStr();
+  return mapClosing(
+    db.prepare("SELECT * FROM day_closings WHERE business_id=? AND date=?").get(businessId, today)
+  );
+}
+
+async function startDayClosing(businessId) {
+  const today = todayStr();
+  const existing = db.prepare("SELECT * FROM day_closings WHERE business_id=? AND date=?").get(businessId, today);
+  if (existing) return { closing: mapClosing(existing), balances: getClosingBalances(existing.id) };
+  const accs = await listAccounts(businessId);
+  const closingId = newId();
+  db.prepare(`INSERT INTO day_closings (id,business_id,date,status,notes,difference,closed_at,created_at)
+              VALUES (?,?,?,'open','',0,'',?)`)
+    .run(closingId, businessId, today, new Date().toISOString());
+  const balances = accs.map(a => {
+    const expected = accountBalance(businessId, a.id, today);
+    const bId = newId();
+    db.prepare(`INSERT INTO day_closing_balances (id,closing_id,account_id,account_name,expected,actual,difference)
+                VALUES (?,?,?,?,?,0,?)`)
+      .run(bId, closingId, a.id, a.name, expected, -expected);
+    return { id: bId, accountId: a.id, accountName: a.name, expected, actual: 0, difference: -expected };
+  });
+  return { closing: mapClosing(db.prepare("SELECT * FROM day_closings WHERE id=?").get(closingId)), balances };
+}
+
+function getClosingBalances(closingId) {
+  return db.prepare("SELECT * FROM day_closing_balances WHERE closing_id=?").all(closingId).map(r => ({
+    id: r.id, accountId: r.account_id, accountName: r.account_name,
+    expected: Number(r.expected), actual: Number(r.actual), difference: Number(r.difference),
+  }));
+}
+
+async function updateClosingActual(businessId, closingId, balances) {
+  balances.forEach(({ accountId, actual }) => {
+    const row = db.prepare("SELECT * FROM day_closing_balances WHERE closing_id=? AND account_id=?")
+      .get(closingId, accountId);
+    if (!row) return;
+    const diff = Number(actual) - Number(row.expected);
+    db.prepare("UPDATE day_closing_balances SET actual=?,difference=? WHERE id=?")
+      .run(Number(actual), diff, row.id);
+  });
+  const rows = db.prepare("SELECT * FROM day_closing_balances WHERE closing_id=?").all(closingId);
+  const totalDiff = rows.reduce((s, r) => s + Number(r.difference), 0);
+  db.prepare("UPDATE day_closings SET difference=? WHERE id=?").run(totalDiff, closingId);
+  const closing = db.prepare("SELECT * FROM day_closings WHERE id=?").get(closingId);
+  return { closing: mapClosing(closing), balances: getClosingBalances(closingId) };
+}
+
+async function confirmDayClosing(businessId, closingId, notes) {
+  const now = new Date().toISOString();
+  db.prepare("UPDATE day_closings SET status='closed',closed_at=?,notes=? WHERE id=? AND business_id=?")
+    .run(now, notes || "", closingId, businessId);
+  const closing = db.prepare("SELECT * FROM day_closings WHERE id=?").get(closingId);
+  return { closing: mapClosing(closing), balances: getClosingBalances(closingId) };
+}
+// end of sqliteService

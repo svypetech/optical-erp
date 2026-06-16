@@ -9,10 +9,14 @@ const links = [
   { to: "/sales", label: "Sales", icon: "◉" },
   { to: "/customers", label: "Customers", icon: "☺" },
   { to: "/promotions", label: "Promotions", icon: "✦" },
+  { to: "/accounts", label: "Accounts", icon: "🏦" },
+  { to: "/transfers", label: "Transfers", icon: "⇄" },
   { to: "/income", label: "Income", icon: "↑" },
   { to: "/expenses", label: "Expenses", icon: "↓" },
-  { to: "/reports", label: "Reports", icon: "▤" },
-  { to: "/businesses", label: "Businesses", icon: "▣" },
+  { to: "/dayclose", label: "Day Closing", icon: "✓" },
+  { to: "/pnl", label: "P&L / Aging", icon: "▤" },
+  { to: "/reports", label: "Reports", icon: "▣" },
+  { to: "/businesses", label: "Businesses", icon: "⚙" },
 ];
 
 export default function Layout({ children }) {
