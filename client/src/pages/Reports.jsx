@@ -60,7 +60,7 @@ export default function Reports() {
   const totals = useMemo(() => {
     const income = rows.reduce((a, r) => a + r.income, 0);
     const expenses = rows.reduce((a, r) => a + r.expenses, 0);
-    return { income, expenses, profit: income - expenses };
+    return { income, expenses, netIncome: income - expenses };
   }, [rows]);
 
   if (!activeId)
@@ -116,9 +116,9 @@ export default function Reports() {
           <div className="mt-2 text-2xl font-bold text-emerald-600">{fmtMoney(totals.income, cur)}</div></Card>
         <Card><div className="text-sm font-medium text-slate-500 dark:text-slate-400">Expenses</div>
           <div className="mt-2 text-2xl font-bold text-rose-600">{fmtMoney(totals.expenses, cur)}</div></Card>
-        <Card><div className="text-sm font-medium text-slate-500 dark:text-slate-400">Profit</div>
-          <div className={"mt-2 text-2xl font-bold " + (totals.profit >= 0 ? "text-indigo-600" : "text-rose-600")}>
-            {fmtMoney(totals.profit, cur)}</div></Card>
+        <Card><div className="text-sm font-medium text-slate-500 dark:text-slate-400">Net Income</div>
+          <div className={"mt-2 text-2xl font-bold " + (totals.netIncome >= 0 ? "text-indigo-600" : "text-rose-600")}>
+            {fmtMoney(totals.netIncome, cur)}</div></Card>
       </div>
 
       <Card className="hidden overflow-x-auto p-0 md:block">
@@ -128,7 +128,7 @@ export default function Reports() {
               <th className="px-4 py-3">Period</th>
               <th className="px-4 py-3 text-right">Income</th>
               <th className="px-4 py-3 text-right">Expenses</th>
-              <th className="px-4 py-3 text-right">Profit</th>
+              <th className="px-4 py-3 text-right">Net Income</th>
             </tr>
           </thead>
           <tbody>
@@ -140,8 +140,8 @@ export default function Reports() {
                 <td className="px-4 py-3 font-medium">{label(r.key)}</td>
                 <td className="px-4 py-3 text-right text-emerald-600">{fmtMoney(r.income, cur)}</td>
                 <td className="px-4 py-3 text-right text-rose-600">{fmtMoney(r.expenses, cur)}</td>
-                <td className={"px-4 py-3 text-right font-semibold " + (r.profit >= 0 ? "text-indigo-600" : "text-rose-600")}>
-                  {fmtMoney(r.profit, cur)}
+                <td className={"px-4 py-3 text-right font-semibold " + (r.netIncome >= 0 ? "text-indigo-600" : "text-rose-600")}>
+                  {fmtMoney(r.netIncome, cur)}
                 </td>
               </tr>
             ))}
@@ -160,7 +160,7 @@ export default function Reports() {
             <div className="mt-2 grid grid-cols-3 gap-2 text-sm">
               <div><div className="text-xs text-slate-400">Income</div><div className="font-semibold text-emerald-600">{fmtMoney(r.income, cur)}</div></div>
               <div><div className="text-xs text-slate-400">Expenses</div><div className="font-semibold text-rose-600">{fmtMoney(r.expenses, cur)}</div></div>
-              <div><div className="text-xs text-slate-400">Profit</div><div className={"font-semibold " + (r.profit >= 0 ? "text-indigo-600" : "text-rose-600")}>{fmtMoney(r.profit, cur)}</div></div>
+              <div><div className="text-xs text-slate-400">Net Income</div><div className={"font-semibold " + (r.netIncome >= 0 ? "text-indigo-600" : "text-rose-600")}>{fmtMoney(r.netIncome, cur)}</div></div>
             </div>
           </Card>
         ))}

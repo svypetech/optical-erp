@@ -52,6 +52,16 @@ function calcExpectedBalance(businessId, accountId) {
   const transfersIn = Number(db.prepare(
     "SELECT COALESCE(SUM(amount),0) t FROM account_transfers WHERE business_id=? AND to_account_id=?"
   ).get(businessId, accountId).t) || 0;
+  // Borrowed money coming into this account (someone lent me cash)
+  const borrowedIn = Number(db.prepare(
+    "SELECT COALESCE(SUM(amount),0) t FROM loans WHERE business_id=? AND account_id=? AND type='borrowed'"
+  ).get(businessId, accountId).t) || 0;
+  // Repayments I receive for money I lent out
+  const loanRepaymentsIn = Number(db.prepare(
+    `SELECT COALESCE(SUM(lp.amount),0) t FROM loan_payments lp
+     JOIN loans l ON l.id = lp.loan_id
+     WHERE lp.business_id=? AND lp.account_id=? AND l.type='lent'`
+  ).get(businessId, accountId).t) || 0;
 
   // Money OUT: expenses paid from this account, transfers out
   const expensesOut = Number(db.prepare(
@@ -60,8 +70,19 @@ function calcExpectedBalance(businessId, accountId) {
   const transfersOut = Number(db.prepare(
     "SELECT COALESCE(SUM(amount),0) t FROM account_transfers WHERE business_id=? AND from_account_id=?"
   ).get(businessId, accountId).t) || 0;
+  // Money lent out from this account
+  const lentOut = Number(db.prepare(
+    "SELECT COALESCE(SUM(amount),0) t FROM loans WHERE business_id=? AND account_id=? AND type='lent'"
+  ).get(businessId, accountId).t) || 0;
+  // Repayments I make for money I borrowed
+  const loanRepaymentsOut = Number(db.prepare(
+    `SELECT COALESCE(SUM(lp.amount),0) t FROM loan_payments lp
+     JOIN loans l ON l.id = lp.loan_id
+     WHERE lp.business_id=? AND lp.account_id=? AND l.type='borrowed'`
+  ).get(businessId, accountId).t) || 0;
 
-  return opening + paymentsIn + incomeIn + transfersIn - expensesOut - transfersOut;
+  return opening + paymentsIn + incomeIn + transfersIn + borrowedIn + loanRepaymentsIn
+       - expensesOut - transfersOut - lentOut - loanRepaymentsOut;
 }
 
 // ── ACCOUNTS ─────────────────────────────────────────────────────────────────
@@ -241,7 +262,7 @@ function getPnlByCategory(businessId, from, to) {
     income: totalIncome,
     expensesByCategory: expenses.map(e => ({ category: e.category, amount: Number(e.total) })),
     totalExpenses,
-    netProfit: totalIncome - totalExpenses,
+    netIncome: totalIncome - totalExpenses,
   };
 }
 
@@ -270,10 +291,122 @@ function getReceivablesAging(businessId) {
   return buckets;
 }
 
+// ── Loans (lending / borrowing) ─────────────────────────────────────────────
+const nowIso = () => new Date().toISOString();
+
+function mapLoan(r) {
+  if (!r) return null;
+  const paid = Number(db.prepare(
+    "SELECT COALESCE(SUM(amount),0) t FROM loan_payments WHERE loan_id=?"
+  ).get(r.id).t) || 0;
+  const amount = Number(r.amount) || 0;
+  return {
+    id: r.id, type: r.type, personName: r.person_name,
+    customerId: r.customer_id || "", amount,
+    date: r.date, accountId: r.account_id || "",
+    notes: r.notes || "", status: r.status,
+    paid, balance: Math.max(0, amount - paid),
+  };
+}
+
+function listLoans(businessId, { type, status } = {}) {
+  let sql = "SELECT * FROM loans WHERE business_id=?";
+  const args = [businessId];
+  if (type) { sql += " AND type=?"; args.push(type); }
+  if (status) { sql += " AND status=?"; args.push(status); }
+  sql += " ORDER BY date DESC, created_at DESC";
+  return db.prepare(sql).all(...args).map(mapLoan);
+}
+
+function listLoansForCustomer(businessId, customerId) {
+  return db.prepare(
+    "SELECT * FROM loans WHERE business_id=? AND customer_id=? ORDER BY date DESC, created_at DESC"
+  ).all(businessId, customerId).map(mapLoan);
+}
+
+function createLoan(businessId, { type, personName, customerId, amount, date, accountId, notes }) {
+  if (type !== "lent" && type !== "borrowed") throw new Error("type must be 'lent' or 'borrowed'");
+  if (!personName || !String(personName).trim()) throw new Error("Person name is required");
+  if (!amount || Number(amount) <= 0) throw new Error("Amount must be greater than 0");
+  const id = newId();
+  db.prepare(
+    `INSERT INTO loans (id,business_id,type,person_name,customer_id,amount,date,account_id,notes,status,created_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?)`
+  ).run(id, businessId, type, String(personName).trim(), customerId || "", Number(amount),
+        date || todayStr(), accountId || "", notes || "", "open", nowIso());
+  return mapLoan(db.prepare("SELECT * FROM loans WHERE id=?").get(id));
+}
+
+function updateLoan(businessId, id, patch) {
+  const cur = db.prepare("SELECT * FROM loans WHERE id=? AND business_id=?").get(id, businessId);
+  if (!cur) return null;
+  db.prepare(
+    `UPDATE loans SET person_name=?, amount=?, date=?, account_id=?, notes=? WHERE id=?`
+  ).run(
+    patch.personName !== undefined ? String(patch.personName).trim() : cur.person_name,
+    patch.amount !== undefined ? Number(patch.amount) : cur.amount,
+    patch.date !== undefined ? patch.date : cur.date,
+    patch.accountId !== undefined ? patch.accountId : cur.account_id,
+    patch.notes !== undefined ? patch.notes : cur.notes,
+    id
+  );
+  return mapLoan(db.prepare("SELECT * FROM loans WHERE id=?").get(id));
+}
+
+function deleteLoan(businessId, id) {
+  db.prepare("DELETE FROM loans WHERE id=? AND business_id=?").run(id, businessId);
+  return { ok: true };
+}
+
+function addLoanPayment(businessId, loanId, { amount, date, accountId, notes }) {
+  const loan = db.prepare("SELECT * FROM loans WHERE id=? AND business_id=?").get(loanId, businessId);
+  if (!loan) throw new Error("Loan not found");
+  if (!amount || Number(amount) <= 0) throw new Error("Amount must be greater than 0");
+  const id = newId();
+  db.prepare(
+    `INSERT INTO loan_payments (id,business_id,loan_id,amount,date,account_id,notes) VALUES (?,?,?,?,?,?,?)`
+  ).run(id, businessId, loanId, Number(amount), date || todayStr(), accountId || "", notes || "");
+
+  // Auto-mark settled if fully paid
+  const mapped = mapLoan(db.prepare("SELECT * FROM loans WHERE id=?").get(loanId));
+  if (mapped.balance <= 0) {
+    db.prepare("UPDATE loans SET status='settled' WHERE id=?").run(loanId);
+  }
+  return mapLoan(db.prepare("SELECT * FROM loans WHERE id=?").get(loanId));
+}
+
+function listLoanPayments(businessId, loanId) {
+  return db.prepare(
+    "SELECT * FROM loan_payments WHERE business_id=? AND loan_id=? ORDER BY date DESC"
+  ).all(businessId, loanId).map(r => ({
+    id: r.id, amount: Number(r.amount), date: r.date, accountId: r.account_id || "", notes: r.notes || "",
+  }));
+}
+
+function markLoanSettled(businessId, id) {
+  db.prepare("UPDATE loans SET status='settled' WHERE id=? AND business_id=?").run(id, businessId);
+  return mapLoan(db.prepare("SELECT * FROM loans WHERE id=?").get(id));
+}
+function reopenLoan(businessId, id) {
+  db.prepare("UPDATE loans SET status='open' WHERE id=? AND business_id=?").run(id, businessId);
+  return mapLoan(db.prepare("SELECT * FROM loans WHERE id=?").get(id));
+}
+
+// Summary: total receivable (money owed to me) and total payable (money I owe)
+function getLoanSummary(businessId) {
+  const lent = db.prepare("SELECT * FROM loans WHERE business_id=? AND type='lent'").all(businessId).map(mapLoan);
+  const borrowed = db.prepare("SELECT * FROM loans WHERE business_id=? AND type='borrowed'").all(businessId).map(mapLoan);
+  const totalReceivable = lent.reduce((s, l) => s + l.balance, 0);
+  const totalPayable = borrowed.reduce((s, l) => s + l.balance, 0);
+  return { totalReceivable, totalPayable, lentCount: lent.filter(l=>l.status==='open').length, borrowedCount: borrowed.filter(l=>l.status==='open').length };
+}
+
 module.exports = {
   EXPENSE_CATEGORIES, ACCOUNT_TYPES,
   listAccounts, createAccount, updateAccount, deleteAccount,
   listTransfers, createTransfer, deleteTransfer,
   getClosingWithBalances, saveClosingBalances, closeDay, listClosings,
   getPnlByCategory, getReceivablesAging, calcExpectedBalance,
+  listLoans, listLoansForCustomer, createLoan, updateLoan, deleteLoan,
+  addLoanPayment, listLoanPayments, markLoanSettled, reopenLoan, getLoanSummary,
 };

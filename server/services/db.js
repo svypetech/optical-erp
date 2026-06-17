@@ -144,6 +144,31 @@ CREATE TABLE IF NOT EXISTS day_closing_balances (
   expected REAL DEFAULT 0, actual REAL DEFAULT 0, difference REAL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_dcb_closing ON day_closing_balances(closing_id);
+CREATE TABLE IF NOT EXISTS loans (
+  id TEXT PRIMARY KEY,
+  business_id TEXT NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,                 -- 'lent' (receivable, I gave money) or 'borrowed' (payable, I took money)
+  person_name TEXT NOT NULL DEFAULT '',
+  customer_id TEXT DEFAULT '',        -- optional link to a customer profile
+  amount REAL NOT NULL DEFAULT 0,     -- original principal amount
+  date TEXT NOT NULL,
+  account_id TEXT DEFAULT '',         -- account money left from / came into
+  notes TEXT DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'open', -- 'open' or 'settled'
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_loans_biz ON loans(business_id);
+CREATE INDEX IF NOT EXISTS idx_loans_customer ON loans(customer_id);
+CREATE TABLE IF NOT EXISTS loan_payments (
+  id TEXT PRIMARY KEY,
+  business_id TEXT NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  loan_id TEXT NOT NULL REFERENCES loans(id) ON DELETE CASCADE,
+  amount REAL NOT NULL DEFAULT 0,
+  date TEXT NOT NULL,
+  account_id TEXT DEFAULT '',
+  notes TEXT DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_loan_payments_loan ON loan_payments(loan_id);
 `);
 
 const migrations = [

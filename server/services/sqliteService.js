@@ -433,10 +433,10 @@ async function buildWorkbook(businessId) {
     { header: "Date", key: "date", width: 14 },
     { header: "Income", key: "income", width: 14 },
     { header: "Expenses", key: "expenses", width: 14 },
-    { header: "Profit", key: "profit", width: 14 },
+    { header: "Net Income", key: "netIncome", width: 14 },
   ];
   Object.keys(byDay).sort().forEach((d) =>
-    sum.addRow({ date: d, income: byDay[d].income, expenses: byDay[d].expenses, profit: byDay[d].income - byDay[d].expenses }));
+    sum.addRow({ date: d, income: byDay[d].income, expenses: byDay[d].expenses, netIncome: byDay[d].income - byDay[d].expenses }));
 
   return wb;
 }
@@ -591,7 +591,7 @@ async function getPnLReport(businessId, from, to) {
     totalRevenue,
     expenseByCategory,
     totalExpenses,
-    netProfit: totalRevenue - totalExpenses,
+    netIncome: totalRevenue - totalExpenses,
   };
 }
 

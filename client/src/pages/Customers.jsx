@@ -11,6 +11,10 @@ export default function Customers() {
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState(null); // customer whose ledger is open
   const [ledger, setLedger] = useState(null);
+  const [custLoans, setCustLoans] = useState([]);
+  const [loanModal, setLoanModal] = useState(false);
+  const [loanForm, setLoanForm] = useState({ type: "lent", amount: "", date: "", accountId: "", notes: "" });
+  const [accounts, setAccounts] = useState([]);
   const [invoiceSale, setInvoiceSale] = useState(null);
   const [editOpen, setEditOpen] = useState(false);
   const [form, setForm] = useState({ name: "", mobile: "", notes: "" });
@@ -26,6 +30,24 @@ export default function Customers() {
   const openLedger = async (id) => {
     setOpenId(id);
     setLedger(await api.customerLedger(activeId, id));
+    setCustLoans(await api.listLoansForCustomer(activeId, id));
+  };
+
+  const openNewLoanForCustomer = async () => {
+    if (accounts.length === 0) setAccounts(await api.listAccounts(activeId));
+    setLoanForm({ type: "lent", amount: "", date: new Date().toISOString().slice(0,10), accountId: "", notes: "" });
+    setLoanModal(true);
+  };
+
+  const saveCustomerLoan = async () => {
+    if (!loanForm.amount || Number(loanForm.amount) <= 0) return alert("Enter a valid amount.");
+    await api.createLoan(activeId, {
+      ...loanForm,
+      personName: ledger.customer.name,
+      customerId: ledger.customer.id,
+    });
+    setLoanModal(false);
+    setCustLoans(await api.listLoansForCustomer(activeId, openId));
   };
 
   const openRxEdit = () => {
@@ -163,7 +185,66 @@ export default function Customers() {
           </table>
         </Card>
 
+        <Card className="overflow-x-auto p-0">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="text-sm font-bold text-slate-700 dark:text-slate-200">Loans with this customer</div>
+            <button onClick={openNewLoanForCustomer}
+              className="rounded-md bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-300">
+              + Add Loan
+            </button>
+          </div>
+          <table className="w-full text-sm">
+            <thead><tr className="border-y border-slate-200 text-left text-xs font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-400">
+              <th className="px-4 py-2">Type</th><th className="px-4 py-2">Date</th>
+              <th className="px-4 py-2 text-right">Amount</th><th className="px-4 py-2 text-right">Balance</th><th className="px-4 py-2">Status</th></tr></thead>
+            <tbody>
+              {custLoans.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">No loans recorded.</td></tr>}
+              {custLoans.map((l) => (
+                <tr key={l.id} className="border-b border-slate-100 last:border-0 dark:border-slate-700/60">
+                  <td className="px-4 py-2">{l.type === "lent" ? "I lent" : "I borrowed"}</td>
+                  <td className="px-4 py-2 text-slate-600 dark:text-slate-300">{l.date}</td>
+                  <td className="px-4 py-2 text-right">{fmtMoney(l.amount, cur)}</td>
+                  <td className={"px-4 py-2 text-right font-semibold " + (l.balance > 0 ? "text-rose-600" : "text-slate-400")}>{fmtMoney(l.balance, cur)}</td>
+                  <td className="px-4 py-2">{l.status === "open" ? "Open" : "Settled"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+
         {invoiceSale && <Invoice sale={invoiceSale} business={activeBusiness} onClose={() => setInvoiceSale(null)} />}
+
+        <Modal open={loanModal} title={`Add Loan for ${ledger.customer.name}`} onClose={() => setLoanModal(false)}>
+          <div className="space-y-4">
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">Type</span>
+              <select value={loanForm.type} onChange={(e) => setLoanForm({ ...loanForm, type: e.target.value })}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-white">
+                <option value="lent">I lent money to this customer</option>
+                <option value="borrowed">I borrowed money from this customer</option>
+              </select>
+            </label>
+            <Input label="Amount" type="number" value={loanForm.amount}
+              onChange={(e) => setLoanForm({ ...loanForm, amount: e.target.value })} />
+            <Input label="Date" type="date" value={loanForm.date}
+              onChange={(e) => setLoanForm({ ...loanForm, date: e.target.value })} />
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {loanForm.type === "lent" ? "Pay from account" : "Receive into account"}
+              </span>
+              <select value={loanForm.accountId} onChange={(e) => setLoanForm({ ...loanForm, accountId: e.target.value })}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none dark:border-slate-600 dark:bg-slate-900 dark:text-white">
+                <option value="">No account (don't affect balances)</option>
+                {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </label>
+            <Input label="Notes (optional)" value={loanForm.notes} onChange={(e) => setLoanForm({ ...loanForm, notes: e.target.value })} />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="secondary" onClick={() => setLoanModal(false)}>Cancel</Button>
+              <Button onClick={saveCustomerLoan}>Save</Button>
+            </div>
+          </div>
+        </Modal>
 
         <Modal open={rxOpen} title="Edit Prescription" onClose={() => setRxOpen(false)}>
           <div className="space-y-4">

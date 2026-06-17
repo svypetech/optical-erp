@@ -113,7 +113,7 @@ router.get("/csv", async (req, res) => {
 
   lines.push("");
   lines.push(["Daily Summary"].map(csvEscape).join(","));
-  lines.push(["Date", "Income Received", "Expenses", "Profit"].join(","));
+  lines.push(["Date", "Income Received", "Expenses", "Net Income"].join(","));
   let totalIncome = 0;
   let totalExpenses = 0;
   Object.keys(byDay).sort().forEach((d) => {
@@ -129,7 +129,7 @@ router.get("/csv", async (req, res) => {
   lines.push(["Totals"].map(csvEscape).join(","));
   lines.push(["Total Income Received", totalIncome].map(csvEscape).join(","));
   lines.push(["Total Expenses", totalExpenses].map(csvEscape).join(","));
-  lines.push(["Net Profit", totalIncome - totalExpenses].map(csvEscape).join(","));
+  lines.push(["Net Income", totalIncome - totalExpenses].map(csvEscape).join(","));
 
   const safe = String(biz.name).replace(/[^a-z0-9]+/gi, "_");
   res.setHeader("Content-Type", "text/csv");

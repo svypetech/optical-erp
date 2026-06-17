@@ -49,6 +49,21 @@ export const api = {
   getPnl: (bid, from, to) => request(`/businesses/${bid}/pnl?from=${from}&to=${to}`),
   getAging: (bid) => request(`/businesses/${bid}/aging`),
 
+  // loans (lending / borrowing)
+  listLoans: (bid, opts = {}) => {
+    const q = new URLSearchParams(opts).toString();
+    return request(`/businesses/${bid}/loans${q ? `?${q}` : ""}`);
+  },
+  getLoanSummary: (bid) => request(`/businesses/${bid}/loans/summary`),
+  listLoansForCustomer: (bid, customerId) => request(`/businesses/${bid}/loans/by-customer/${customerId}`),
+  createLoan: (bid, l) => request(`/businesses/${bid}/loans`, { method: "POST", body: l }),
+  updateLoan: (bid, id, l) => request(`/businesses/${bid}/loans/${id}`, { method: "PUT", body: l }),
+  deleteLoan: (bid, id) => request(`/businesses/${bid}/loans/${id}`, { method: "DELETE" }),
+  settleLoan: (bid, id) => request(`/businesses/${bid}/loans/${id}/settle`, { method: "POST" }),
+  reopenLoan: (bid, id) => request(`/businesses/${bid}/loans/${id}/reopen`, { method: "POST" }),
+  listLoanPayments: (bid, id) => request(`/businesses/${bid}/loans/${id}/payments`),
+  addLoanPayment: (bid, id, p) => request(`/businesses/${bid}/loans/${id}/payments`, { method: "POST", body: p }),
+
   // income
   listIncome: (bid) => request(`/businesses/${bid}/income`),
   listIncomeAll: (bid) => request(`/businesses/${bid}/income/all`),

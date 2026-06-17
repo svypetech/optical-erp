@@ -11,7 +11,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 export default function Dashboard() {
   const { activeBusiness, activeId } = useApp();
   const [stats, setStats] = useState(null);     // all-time + today, from backend
-  const [daily, setDaily] = useState([]);        // full daily summary [{key,income,expenses,profit}]
+  const [daily, setDaily] = useState([]);        // full daily summary [{key,income,expenses,netIncome}]
   const [csvOpen, setCsvOpen] = useState(false);
   const [range, setRange] = useState({ from: "", to: "" });   // dashboard view filter
   const [csvRange, setCsvRange] = useState({ from: "", to: "" }); // export dialog
@@ -40,7 +40,7 @@ export default function Dashboard() {
   const rangeTotals = useMemo(() => {
     const income = filtered.reduce((a, g) => a + g.income, 0);
     const expenses = filtered.reduce((a, g) => a + g.expenses, 0);
-    return { income, expenses, profit: income - expenses };
+    return { income, expenses, netIncome: income - expenses };
   }, [filtered]);
 
   const rangeActive = !!(range.from || range.to);
@@ -116,8 +116,8 @@ export default function Dashboard() {
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Stat label="Range Income" value={fmtMoney(rangeTotals.income, cur)} accent="text-emerald-600" />
           <Stat label="Range Expenses" value={fmtMoney(rangeTotals.expenses, cur)} accent="text-rose-600" />
-          <Stat label="Range Profit" value={fmtMoney(rangeTotals.profit, cur)}
-            accent={rangeTotals.profit >= 0 ? "text-indigo-600" : "text-rose-600"} />
+          <Stat label="Range Net Income" value={fmtMoney(rangeTotals.netIncome, cur)}
+            accent={rangeTotals.netIncome >= 0 ? "text-indigo-600" : "text-rose-600"} />
         </div>
       ) : (
         stats && (
@@ -125,14 +125,14 @@ export default function Dashboard() {
             <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
               <Stat label="Today's Income" value={fmtMoney(stats.todayIncome, cur)} accent="text-emerald-600" />
               <Stat label="Today's Expenses" value={fmtMoney(stats.todayExpenses, cur)} accent="text-rose-600" />
-              <Stat label="Today's Profit" value={fmtMoney(stats.todayProfit, cur)}
-                accent={stats.todayProfit >= 0 ? "text-indigo-600" : "text-rose-600"} />
+              <Stat label="Today's Net Income" value={fmtMoney(stats.todayNetIncome, cur)}
+                accent={stats.todayNetIncome >= 0 ? "text-indigo-600" : "text-rose-600"} />
             </div>
             <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
               <Stat label="Total Revenue" value={fmtMoney(stats.totalRevenue, cur)} accent="text-emerald-600" />
               <Stat label="Total Expenses" value={fmtMoney(stats.totalExpenses, cur)} accent="text-rose-600" />
-              <Stat label="Total Profit" value={fmtMoney(stats.totalProfit, cur)}
-                accent={stats.totalProfit >= 0 ? "text-indigo-600" : "text-rose-600"} />
+              <Stat label="Total Net Income" value={fmtMoney(stats.totalNetIncome, cur)}
+                accent={stats.totalNetIncome >= 0 ? "text-indigo-600" : "text-rose-600"} />
             </div>
           </>
         )

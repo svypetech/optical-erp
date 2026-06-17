@@ -29,10 +29,10 @@ router.get("/dashboard", async (req, res) => {
   res.json({
     todayIncome,
     todayExpenses,
-    todayProfit: todayIncome - todayExpenses,
+    todayNetIncome: todayIncome - todayExpenses,
     totalRevenue: totalIncome,
     totalExpenses,
-    totalProfit: totalIncome - totalExpenses,
+    totalNetIncome: totalIncome - totalExpenses,
     incomeCount: income.length + payments.length,
     expenseCount: expenses.length,
   });
@@ -78,7 +78,7 @@ router.get("/summary", async (req, res) => {
       map[k].expenses += Number(r.amount) || 0;
     });
     return Object.values(map)
-      .map((g) => ({ ...g, profit: g.income - g.expenses }))
+      .map((g) => ({ ...g, netIncome: g.income - g.expenses }))
       .sort((a, b) => (a.key < b.key ? 1 : -1));
   };
 
