@@ -70,21 +70,41 @@ export function AppProvider({ children }) {
   };
 
   // ---- Businesses ----
+  const [bizLoadError, setBizLoadError] = useState(null);
+
   const refreshBusinesses = async () => {
     const list = await api.listBusinesses();
     setBusinesses(list);
+    setBizLoadError(null);
     return list;
   };
 
   // After login: load businesses then show business picker
   useEffect(() => {
     if (!token) return;
-    refreshBusinesses().then((list) => {
-      if (list.length === 0) return;
-      // Always show business picker on login — never auto-resume
-      setActiveId(null);
-      setPinLock("select");
-    }).catch(() => {});
+    let cancelled = false;
+
+    const loadWithRetry = async (attemptsLeft = 2) => {
+      try {
+        const list = await refreshBusinesses();
+        if (cancelled) return;
+        if (list.length === 0) return;
+        setActiveId(null);
+        setPinLock("select");
+      } catch (err) {
+        if (cancelled) return;
+        if (attemptsLeft > 0) {
+          // Transient network hiccup right after login/refresh — retry once before giving up.
+          setTimeout(() => loadWithRetry(attemptsLeft - 1), 600);
+        } else {
+          console.error("Failed to load businesses:", err);
+          setBizLoadError(err.message || "Could not load your businesses. Check your connection and try again.");
+        }
+      }
+    };
+    loadWithRetry();
+
+    return () => { cancelled = true; };
   }, [token]);
 
   // Called from BusinessPicker when a business is chosen
@@ -123,7 +143,7 @@ export function AppProvider({ children }) {
       businesses, activeId,
       activeBusiness: businesses.find((b) => String(b.id) === String(activeId)) || null,
       selectBusiness, selectBusinessForLogin,
-      refreshBusinesses,
+      refreshBusinesses, bizLoadError,
       pinLock, pinBusiness, onPinUnlocked,
     }}>
       {children}

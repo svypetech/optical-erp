@@ -23,8 +23,25 @@ app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
 // Serve React client in production
 const clientBuild = path.join(__dirname, "..", "client", "dist");
-app.use(express.static(clientBuild));
+
+// Hashed JS/CSS/image files (e.g. index-aB3xQ.js) are safe to cache forever —
+// their filename changes every build, so a new deploy is automatically picked up.
+app.use(express.static(clientBuild, {
+  index: false, // never auto-serve index.html from here; handled below with no-cache
+  setHeaders: (res, filePath) => {
+    if (/\.(js|css|woff2?|png|jpg|jpeg|svg|ico)$/.test(filePath)) {
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    }
+  },
+}));
+
 app.get(/^(?!\/api).*/, (req, res) => {
+  // index.html must NEVER be cached — it references the current build's hashed
+  // file names. If browsers cache this, they keep loading old JS forever and
+  // the app can appear blank, broken, or stuck on stale data after a deploy.
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
   res.sendFile(path.join(clientBuild, "index.html"), (err) => {
     if (err) res.status(404).send("Client not built.");
   });

@@ -15,14 +15,14 @@ const links = [
   { to: "/income", label: "Income", icon: "↑" },
   { to: "/expenses", label: "Expenses", icon: "↓" },
   { to: "/dayclose", label: "Day Closing", icon: "✓" },
-  { to: "/pnl", label: "P&L / Aging", icon: "▤" },
+  { to: "/pnl", label: "Income / Loans", icon: "▤" },
   { to: "/reports", label: "Reports", icon: "▣" },
   { to: "/businesses", label: "Businesses", icon: "⚙" },
 ];
 
 export default function Layout({ children }) {
   const { email, logout, dark, setDark, businesses, activeId, selectBusiness,
-          pinLock, pinBusiness, onPinUnlocked } = useApp();
+          pinLock, pinBusiness, onPinUnlocked, bizLoadError, refreshBusinesses } = useApp();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
@@ -132,6 +132,19 @@ export default function Layout({ children }) {
           onUnlock={onPinUnlocked}
           reason={pinLock}
         />
+      )}
+
+      {/* Shown if loading businesses failed after login — distinguishes a real
+          connection problem from "you genuinely have no businesses yet". */}
+      {bizLoadError && businesses.length === 0 && !pinLock && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl dark:bg-slate-800">
+            <div className="mb-3 text-3xl">⚠️</div>
+            <h2 className="mb-1 text-lg font-bold text-slate-900 dark:text-white">Couldn't load your businesses</h2>
+            <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">{bizLoadError}</p>
+            <Button onClick={() => refreshBusinesses()}>Try Again</Button>
+          </div>
+        </div>
       )}
     </div>
   );
